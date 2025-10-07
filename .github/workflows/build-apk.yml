@@ -53,11 +53,6 @@ jobs:
         mkdir -p android/app/src/main/assets
         mkdir -p android/app/src/main/java/com/neurosputnik
         mkdir -p android/app/src/main/res/values
-        mkdir -p android/app/src/main/res/mipmap-hdpi
-        mkdir -p android/app/src/main/res/mipmap-mdpi
-        mkdir -p android/app/src/main/res/mipmap-xhdpi
-        mkdir -p android/app/src/main/res/mipmap-xxhdpi
-        mkdir -p android/app/src/main/res/mipmap-xxxhdpi
         mkdir -p android/gradle/wrapper
         
     - name: 🎨 Create Android Files
@@ -120,8 +115,6 @@ jobs:
             
             <uses-permission android:name="android.permission.INTERNET" />
             <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
             
             <application
                 android:allowBackup="true"
@@ -171,6 +164,14 @@ jobs:
         
     - name: 🛠️ Create Build Files
       run: |
+        # gradle.properties - ВАЖНЫЙ ФАЙЛ ДЛЯ AndroidX
+        cat > android/gradle.properties << 'EOF'
+        android.useAndroidX=true
+        android.enableJetifier=true
+        org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+        android.nonTransitiveRClass=false
+        EOF
+        
         # build.gradle (project)
         cat > android/build.gradle << 'EOF'
         // Top-level build file where you can add configuration options common to all sub-projects/modules.
@@ -183,7 +184,7 @@ jobs:
         }
         EOF
         
-        # build.gradle (app) - УПРОЩЕННАЯ ВЕРСИЯ БЕЗ SDK КОНФЛИКТОВ
+        # build.gradle (app) - УПРОЩЕННАЯ ВЕРСИЯ
         cat > android/app/build.gradle << 'EOF'
         plugins {
             id 'com.android.application'
@@ -270,24 +271,22 @@ jobs:
         cd android/app
         keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
         
-    - name: 🏗️ Build APK (with SDK fix)
+    - name: 🏗️ Build APK
       run: |
         cd android
         
         # Явно указываем SDK location через local.properties
         echo "sdk.dir=$GITHUB_WORKSPACE/android-sdk" > local.properties
-        echo "ndk.dir=" >> local.properties
         
-        # Проверяем переменные окружения
-        echo "=== Environment Variables ==="
-        echo "ANDROID_HOME: $ANDROID_HOME"
-        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-        echo "=== Local Properties ==="
-        cat local.properties
+        # Проверяем файлы
+        echo "=== Checking Files ==="
+        ls -la
+        echo "=== gradle.properties ==="
+        cat gradle.properties
         echo "=== Building APK ==="
         
-        # Собираем APK с явным указанием SDK
-        ./gradlew assembleDebug --no-daemon -DANDROID_HOME="$GITHUB_WORKSPACE/android-sdk"
+        # Собираем APK
+        ./gradlew assembleDebug --no-daemon --stacktrace
         
     - name: 📦 Upload APK Artifact
       uses: actions/upload-artifact@v4
