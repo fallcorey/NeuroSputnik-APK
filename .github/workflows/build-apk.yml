@@ -21,9 +21,6 @@ jobs:
         
     - name: 🏗️ Setup Android Environment
       run: |
-        # Удаляем системный Android SDK чтобы избежать конфликтов
-        rm -rf /usr/local/lib/android/sdk
-        
         # Скачиваем чистый Android SDK
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         mkdir -p android-sdk
@@ -39,11 +36,14 @@ jobs:
         # Устанавливаем необходимые компоненты
         android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.0"
         
-        # Устанавливаем ТОЛЬКО ANDROID_HOME (убираем ANDROID_SDK_ROOT)
+        # Устанавливаем ТОЛЬКО наш SDK в ANDROID_HOME
         echo "ANDROID_HOME=$GITHUB_WORKSPACE/android-sdk" >> $GITHUB_ENV
         echo "$GITHUB_WORKSPACE/android-sdk/platform-tools" >> $GITHUB_PATH
         echo "$GITHUB_WORKSPACE/android-sdk/build-tools/33.0.0" >> $GITHUB_PATH
         echo "$GITHUB_WORKSPACE/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        
+        # Отключаем системный SDK
+        echo "ANDROID_SDK_ROOT=" >> $GITHUB_ENV
         
     - name: 📥 Install Gradle 7.5
       run: |
@@ -280,7 +280,7 @@ jobs:
     - name: 🏗️ Build APK
       run: |
         cd android
-        # Убеждаемся что используется только ANDROID_HOME
+        # Проверяем переменные окружения
         echo "ANDROID_HOME: $ANDROID_HOME"
         echo "Building APK..."
         ./gradlew assembleDebug --no-daemon --stacktrace
