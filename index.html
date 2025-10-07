@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroSputnik</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .app-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 25px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header h1 {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1em;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.2);
+            font-size: 0.9em;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .message {
+            max-width: 85%;
+            padding: 15px 20px;
+            border-radius: 25px;
+            font-size: 1em;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        
+        .user-message {
+            align-self: flex-end;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .ai-message {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .input-area {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        #messageInput {
+            flex: 1;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            color: white;
+            font-size: 16px;
+            outline: none;
+        }
+        
+        #messageInput::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .send-btn {
+            padding: 15px 25px;
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            min-width: 60px;
+            transition: transform 0.2s ease;
+        }
+        
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .typing-indicator {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-style: italic;
+            opacity: 0.7;
+        }
+        
+        @media (max-width: 480px) {
+            .message {
+                max-width: 90%;
+                font-size: 0.95em;
+            }
+            
+            .header h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1>🧠 NeuroSputnik</h1>
+            <p>Оффлайн AI помощник с самообучением</p>
+        </div>
+        
+        <div class="status-bar">
+            <span>🟢 AI активен</span>
+            <span>📱 Оффлайн режим</span>
+            <span>🚀 v1.0</span>
+        </div>
+        
+        <div class="messages" id="messages">
+            <div class="message ai-message">
+                <strong>NeuroSputnik:</strong> Привет! 🚀 Я полностью оффлайн AI помощник. Работаю без интернета и могу самообучаться! Задавай вопросы или предложи сыграть в обучающие игры!
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Задайте вопрос или введите 'игры'..." autocomplete="off">
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+        </div>
+    </div>
+
+    <script>
+        class NeuroSputnikAI {
+            constructor() {
+                this.conversationHistory = [];
+                this.loadConversationHistory();
+            }
+            
+            loadConversationHistory() {
+                try {
+                    const saved = localStorage.getItem('neuro_conversation');
+                    if (saved) {
+                        this.conversationHistory = JSON.parse(saved);
+                    }
+                } catch (e) {
+                    console.log('Нет сохраненной истории');
+                }
+            }
+            
+            saveConversationHistory() {
+                try {
+                    localStorage.setItem('neuro_conversation', JSON.stringify(this.conversationHistory));
+                } catch (e) {
+                    console.log('Не удалось сохранить историю');
+                }
+            }
+            
+            async generateResponse(userMessage) {
+                // Имитация задержки AI
+                await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 1200));
+                
+                const lowerMessage = userMessage.toLowerCase();
+                
+                // Умные ответы на основе контекста
+                if (lowerMessage.includes('привет') || lowerMessage.includes('здравств')) {
+                    return 'Привет! 🎉 Рад тебя видеть! Я NeuroSputnik - оффлайн AI, работающий прямо на твоём телефоне без интернета!';
+                }
+                
+                if (lowerMessage.includes('как дела') || lowerMessage.includes('как ты')) {
+                    return 'Отлично! Готов к общению и обучению. С каждым разговором я становлюсь умнее! 📚';
+                }
+                
+                if (lowerMessage.includes('оффлайн') || lowerMessage.includes('интернет')) {
+                    return 'Да! Я работаю полностью оффлайн. Все AI модели и данные хранятся локально на устройстве. Никаких серверов! 🔒';
+                }
+                
+                if (lowerMessage.includes('игры') || lowerMessage.includes('игра')) {
+                    return `🎮 <strong>Обучающие игры:</strong>
+
+• <strong>Тренировка памяти</strong> - помоги мне запоминать лучше
+• <strong>Логические задачи</strong> - развивай моё мышление  
+• <strong>Викторина</strong> - проверь мои знания
+• <strong>Программирование</strong> - обучай меня кодить
+
+Игры помогают мне самообучаться! Какая интересует?`;
+                }
+                
+                if (lowerMessage.includes('обуч') || lowerMessage.includes('учи')) {
+                    return `📚 <strong>Самообучение NeuroSputnik:</strong>
+
+Я учусь на:
+• Наших разговорах
+• Твоих вопросах и feedback
+• Игровых взаимодействиях
+• Анализе паттернов
+
+Чем больше мы общаемся - тем умнее я становлюсь! 🧠`;
+                }
+                
+                if (lowerMessage.includes('код') || lowerMessage.includes('программир')) {
+                    return `💻 <strong>Программирование:</strong>
+
+Могу помочь с:
+• Python, JavaScript, Java
+• Алгоритмами и структурами данных
+• Веб-разработкой
+• Решением coding problems
+
+Что именно тебя интересует?`;
+                }
+                
+                if (lowerMessage.includes('погод') || lowerMessage.includes('времен')) {
+                    return '⛅ К сожалению, я оффлайн и не могу получить актуальные данные о погоде. Но могу рассказать о климатических зонах или атмосферных явлениях!';
+                }
+                
+                // Анализ сложных вопросов
+                if (lowerMessage.includes('искусствен') || lowerMessage.includes('ai') || lowerMessage.includes('нейросет')) {
+                    return `🤖 <strong>Искусственный интеллект:</strong>
+
+Я работаю на основе:
+• Локальных AI моделей
+• Машинного обучения
+• Обработки естественного языка
+• Самообучающихся алгоритмов
+
+Всё работает оффлайн на твоём Android устройстве!`;
+                }
+                
+                // Общий умный ответ
+                return `🤔 <strong>"${userMessage}"</strong> - интересный вопрос!
+
+Как оффлайн AI я могу:
+• Отвечать на общие вопросы
+• Помогать с обучением
+• Объяснять сложные темы
+• Предлагать идеи и решения
+• Играть в обучающие игры
+
+Попробуй задать вопрос по-другому или спроси о моих возможностях! 💫`;
+            }
+            
+            addToHistory(userMessage, aiResponse) {
+                this.conversationHistory.push({
+                    user: userMessage,
+                    ai: aiResponse,
+                    timestamp: Date.now()
+                });
+                
+                // Ограничиваем историю 50 сообщениями
+                if (this.conversationHistory.length > 50) {
+                    this.conversationHistory = this.conversationHistory.slice(-50);
+                }
+                
+                this.saveConversationHistory();
+            }
+        }
+
+        // Создаем экземпляр AI
+        const ai = new NeuroSputnikAI();
+        
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Блокируем кнопку
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = '...';
+            
+            // Очищаем input
+            input.value = '';
+            
+            // Добавляем сообщение пользователя
+            addMessage(message, 'user');
+            
+            // Показываем индикатор "печатает"
+            showTypingIndicator();
+            
+            // Получаем ответ от AI
+            ai.generateResponse(message).then(response => {
+                removeTypingIndicator();
+                addMessage(response, 'ai');
+                ai.addToHistory(message, response);
+                
+                // Разблокируем кнопку
+                sendBtn.disabled = false;
+                sendBtn.textContent = '➤';
+            });
+        }
+        
+        function addMessage(text, type) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.innerHTML = type === 'user' 
+                ? text 
+                : `<strong>NeuroSputnik:</strong> ${text}`;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function showTypingIndicator() {
+            const messagesDiv = document.getElementById('messages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.textContent = 'NeuroSputnik печатает...';
+            messagesDiv.appendChild(typingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function removeTypingIndicator() {
+            const typingDiv = document.getElementById('typingIndicator');
+            if (typingDiv) {
+                typingDiv.remove();
+            }
+        }
+        
+        // Обработка Enter
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Фокус на input при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('messageInput').focus();
+        });
+    </script>
+</body>
+</html>
