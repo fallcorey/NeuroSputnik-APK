@@ -1,8 +1,10 @@
-apply plugin: 'com.android.application'
+plugins {
+    id 'com.android.application'
+}
 
 android {
+    namespace 'com.neurosputnik'
     compileSdk 33
-    buildToolsVersion "33.0.0"
     
     defaultConfig {
         applicationId "com.neurosputnik"
@@ -24,12 +26,10 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
-            debuggable true
         }
         release {
             signingConfig signingConfigs.debug
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            minifyEnabled false
         }
     }
     
@@ -42,5 +42,4 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.7.0'
-    implementation 'com.google.android.material:material:1.9.0'
 }
