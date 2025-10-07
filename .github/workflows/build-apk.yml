@@ -1,0 +1,300 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Setup Java 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: 🏗️ Setup Android Environment
+      run: |
+        # Удаляем системный Android SDK чтобы избежать конфликтов
+        rm -rf /usr/local/lib/android/sdk
+        
+        # Скачиваем чистый Android SDK
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        mkdir -p android-sdk
+        unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk
+        mv android-sdk/cmdline-tools android-sdk/cmdline-tools-tmp
+        mkdir -p android-sdk/cmdline-tools/latest
+        mv android-sdk/cmdline-tools-tmp/* android-sdk/cmdline-tools/latest/
+        rm -rf android-sdk/cmdline-tools-tmp
+        
+        # Принимаем лицензии
+        yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=android-sdk --licenses
+        
+        # Устанавливаем необходимые компоненты
+        android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+        
+        # Устанавливаем ТОЛЬКО ANDROID_HOME (убираем ANDROID_SDK_ROOT)
+        echo "ANDROID_HOME=$GITHUB_WORKSPACE/android-sdk" >> $GITHUB_ENV
+        echo "$GITHUB_WORKSPACE/android-sdk/platform-tools" >> $GITHUB_PATH
+        echo "$GITHUB_WORKSPACE/android-sdk/build-tools/33.0.0" >> $GITHUB_PATH
+        echo "$GITHUB_WORKSPACE/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        
+    - name: 📥 Install Gradle 7.5
+      run: |
+        wget -q https://services.gradle.org/distributions/gradle-7.5-bin.zip
+        unzip -q gradle-7.5-bin.zip
+        echo "$GITHUB_WORKSPACE/gradle-7.5/bin" >> $GITHUB_PATH
+        
+    - name: 📦 Create Project Structure
+      run: |
+        mkdir -p android/app/src/main/assets
+        mkdir -p android/app/src/main/java/com/neurosputnik
+        mkdir -p android/app/src/main/res/values
+        mkdir -p android/app/src/main/res/mipmap-hdpi
+        mkdir -p android/app/src/main/res/mipmap-mdpi
+        mkdir -p android/app/src/main/res/mipmap-xhdpi
+        mkdir -p android/app/src/main/res/mipmap-xxhdpi
+        mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+        mkdir -p android/gradle/wrapper
+        
+    - name: 🎨 Create Android Files
+      run: |
+        # MainActivity.java
+        cat > android/app/src/main/java/com/neurosputnik/MainActivity.java << 'EOF'
+        package com.neurosputnik;
+        
+        import android.os.Bundle;
+        import android.webkit.WebView;
+        import android.webkit.WebViewClient;
+        import android.webkit.WebSettings;
+        import androidx.appcompat.app.AppCompatActivity;
+        
+        public class MainActivity extends AppCompatActivity {
+            private WebView webView;
+            
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                
+                webView = new WebView(this);
+                WebSettings webSettings = webView.getSettings();
+                webSettings.setJavaScriptEnabled(true);
+                webSettings.setDomStorageEnabled(true);
+                webSettings.setDatabaseEnabled(true);
+                webSettings.setAllowFileAccess(true);
+                webSettings.setAllowContentAccess(true);
+                webSettings.setAllowUniversalAccessFromFileURLs(true);
+                webSettings.setAllowFileAccessFromFileURLs(true);
+                
+                webView.setWebViewClient(new WebViewClient() {
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                        view.loadUrl(url);
+                        return true;
+                    }
+                });
+                
+                webView.loadUrl("file:///android_asset/index.html");
+                setContentView(webView);
+            }
+            
+            @Override
+            public void onBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    super.onBackPressed();
+                }
+            }
+        }
+        EOF
+        
+        # AndroidManifest.xml
+        cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            package="com.neurosputnik">
+            
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+            
+            <application
+                android:allowBackup="true"
+                android:icon="@mipmap/ic_launcher"
+                android:label="NeuroSputnik"
+                android:theme="@style/AppTheme"
+                android:usesCleartextTraffic="true">
+                
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true"
+                    android:launchMode="singleTop"
+                    android:configChanges="orientation|screenSize"
+                    android:windowSoftInputMode="adjustResize">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+        
+        # strings.xml
+        cat > android/app/src/main/res/values/strings.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <string name="app_name">NeuroSputnik</string>
+        </resources>
+        EOF
+        
+        # styles.xml
+        cat > android/app/src/main/res/values/styles.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+                <item name="colorPrimary">#667eea</item>
+                <item name="colorPrimaryDark">#764ba2</item>
+                <item name="colorAccent">#4ECDC4</item>
+            </style>
+        </resources>
+        EOF
+        
+    - name: 📱 Copy Web App
+      run: |
+        cp index.html android/app/src/main/assets/
+        
+    - name: 🛠️ Create Build Files
+      run: |
+        # build.gradle (project)
+        cat > android/build.gradle << 'EOF'
+        // Top-level build file where you can add configuration options common to all sub-projects/modules.
+        plugins {
+            id 'com.android.application' version '7.4.2' apply false
+        }
+        
+        task clean(type: Delete) {
+            delete rootProject.buildDir
+        }
+        EOF
+        
+        # build.gradle (app)
+        cat > android/app/build.gradle << 'EOF'
+        plugins {
+            id 'com.android.application'
+        }
+        
+        android {
+            namespace 'com.neurosputnik'
+            compileSdk 33
+            
+            defaultConfig {
+                applicationId "com.neurosputnik"
+                minSdk 21
+                targetSdk 33
+                versionCode 1
+                versionName "1.0"
+            }
+            
+            signingConfigs {
+                debug {
+                    storeFile file('debug.keystore')
+                    storePassword 'android'
+                    keyAlias 'androiddebugkey'
+                    keyPassword 'android'
+                }
+            }
+            
+            buildTypes {
+                debug {
+                    signingConfig signingConfigs.debug
+                }
+                release {
+                    signingConfig signingConfigs.debug
+                    minifyEnabled false
+                }
+            }
+            
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_1_8
+                targetCompatibility JavaVersion.VERSION_1_8
+            }
+        }
+        
+        dependencies {
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'androidx.webkit:webkit:1.7.0'
+        }
+        EOF
+        
+        # gradle-wrapper.properties
+        cat > android/gradle/wrapper/gradle-wrapper.properties << 'EOF'
+        distributionBase=GRADLE_USER_HOME
+        distributionPath=wrapper/dists
+        distributionUrl=https\://services.gradle.org/distributions/gradle-7.5-bin.zip
+        zipStoreBase=GRADLE_USER_HOME
+        zipStorePath=wrapper.dists
+        EOF
+        
+        # settings.gradle
+        cat > android/settings.gradle << 'EOF'
+        pluginManagement {
+            repositories {
+                gradlePluginPortal()
+                google()
+                mavenCentral()
+            }
+        }
+        dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        rootProject.name = "NeuroSputnik"
+        include ':app'
+        EOF
+        
+        # gradlew script
+        cat > android/gradlew << 'EOF'
+        #!/bin/sh
+        # Use Gradle from PATH
+        exec gradle "$@"
+        EOF
+        chmod +x android/gradlew
+        
+    - name: 🔑 Create Debug Keystore
+      run: |
+        cd android/app
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+        
+    - name: 🏗️ Build APK
+      run: |
+        cd android
+        # Убеждаемся что используется только ANDROID_HOME
+        echo "ANDROID_HOME: $ANDROID_HOME"
+        echo "Building APK..."
+        ./gradlew assembleDebug --no-daemon --stacktrace
+        
+    - name: 📦 Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: neurospuntik-apk
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+        
+    - name: ✅ Success Message
+      run: |
+        echo "🎉 APK успешно собран!"
+        echo "📱 Файл: app-debug.apk"
+        echo "📦 Размер APK: $(du -h android/app/build/outputs/apk/debug/app-debug.apk | cut -f1)"
+        ls -la android/app/build/outputs/apk/debug/
