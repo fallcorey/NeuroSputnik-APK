@@ -57,17 +57,17 @@ jobs:
         
     - name: 🎨 Create Android Files
       run: |
-        # MainActivity.java - УПРОЩЕННАЯ ВЕРСИЯ
+        # MainActivity.java
         cat > android/app/src/main/java/com/neurosputnik/MainActivity.java << 'EOF'
         package com.neurosputnik;
         
-        import android.app.Activity;
         import android.os.Bundle;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
         import android.webkit.WebSettings;
+        import androidx.appcompat.app.AppCompatActivity;
         
-        public class MainActivity extends Activity {
+        public class MainActivity extends AppCompatActivity {
             private WebView webView;
             
             @Override
@@ -107,7 +107,7 @@ jobs:
         }
         EOF
         
-        # AndroidManifest.xml - УПРОЩЕННАЯ ВЕРСИЯ БЕЗ СТИЛЕЙ
+        # AndroidManifest.xml
         cat > android/app/src/main/AndroidManifest.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -118,8 +118,10 @@ jobs:
             
             <application
                 android:allowBackup="true"
+                android:icon="@mipmap/ic_launcher"
                 android:label="NeuroSputnik"
-                android:theme="@android:style/Theme.Light">
+                android:theme="@style/AppTheme"
+                android:usesCleartextTraffic="true">
                 
                 <activity
                     android:name=".MainActivity"
@@ -136,11 +138,23 @@ jobs:
         </manifest>
         EOF
         
-        # strings.xml - ТОЛЬКО ОСНОВНОЕ
+        # strings.xml
         cat > android/app/src/main/res/values/strings.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <resources>
             <string name="app_name">NeuroSputnik</string>
+        </resources>
+        EOF
+        
+        # styles.xml
+        cat > android/app/src/main/res/values/styles.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+                <item name="colorPrimary">#667eea</item>
+                <item name="colorPrimaryDark">#764ba2</item>
+                <item name="colorAccent">#4ECDC4</item>
+            </style>
         </resources>
         EOF
         
@@ -150,10 +164,12 @@ jobs:
         
     - name: 🛠️ Create Build Files
       run: |
-        # gradle.properties
+        # gradle.properties - ВАЖНЫЙ ФАЙЛ ДЛЯ AndroidX
         cat > android/gradle.properties << 'EOF'
+        android.useAndroidX=true
+        android.enableJetifier=true
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-        android.useAndroidX=false
+        android.nonTransitiveRClass=false
         EOF
         
         # build.gradle (project)
@@ -168,13 +184,14 @@ jobs:
         }
         EOF
         
-        # build.gradle (app) - МИНИМАЛЬНАЯ ВЕРСИЯ
+        # build.gradle (app) - УПРОЩЕННАЯ ВЕРСИЯ
         cat > android/app/build.gradle << 'EOF'
         plugins {
             id 'com.android.application'
         }
         
         android {
+            namespace 'com.neurosputnik'
             compileSdk 33
             
             defaultConfig {
@@ -197,9 +214,7 @@ jobs:
             buildTypes {
                 debug {
                     signingConfig signingConfigs.debug
-                minifyEnabled false
-                shrinkResources false
-            }
+                }
             }
             
             compileOptions {
@@ -209,7 +224,8 @@ jobs:
         }
         
         dependencies {
-            // НЕТ ЗАВИСИМОСТЕЙ
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'androidx.webkit:webkit:1.7.0'
         }
         EOF
         
@@ -262,13 +278,15 @@ jobs:
         # Явно указываем SDK location через local.properties
         echo "sdk.dir=$GITHUB_WORKSPACE/android-sdk" > local.properties
         
-        # Проверяем структуру файлов
-        echo "=== File Structure ==="
-        find . -name "*.java" -o -name "*.xml" -o -name "*.gradle" -o -name "*.properties" | sort
+        # Проверяем файлы
+        echo "=== Checking Files ==="
+        ls -la
+        echo "=== gradle.properties ==="
+        cat gradle.properties
         echo "=== Building APK ==="
         
         # Собираем APK
-        ./gradlew clean assembleDebug --no-daemon --stacktrace
+        ./gradlew assembleDebug --no-daemon --stacktrace
         
     - name: 📦 Upload APK Artifact
       uses: actions/upload-artifact@v4
@@ -279,14 +297,7 @@ jobs:
         
     - name: ✅ Success Message
       run: |
-        if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-            echo "🎉 APK успешно собран!"
-            echo "📱 Файл: app-debug.apk"
-            echo "📦 Размер APK: $(du -h android/app/build/outputs/apk/debug/app-debug.apk | cut -f1)"
-            ls -la android/app/build/outputs/apk/debug/
-        else
-            echo "❌ APK не найден"
-            echo "=== Build Output ==="
-            find android/app/build/ -name "*.apk" 2>/dev/null || echo "APK файлы отсутствуют"
-            exit 1
-        fi
+        echo "🎉 APK успешно собран!"
+        echo "📱 Файл: app-debug.apk"
+        echo "📦 Размер APK: $(du -h android/app/build/outputs/apk/debug/app-debug.apk | cut -f1)"
+        ls -la android/app/build/outputs/apk/debug/
