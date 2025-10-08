@@ -3,7 +3,6 @@ plugins {
 }
 
 android {
-    namespace 'com.neurosputnik'
     compileSdk 33
     
     defaultConfig {
@@ -26,8 +25,6 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
     
@@ -38,5 +35,5 @@ android {
 }
 
 dependencies {
-    // БЕЗ ВНЕШНИХ ЗАВИСИМОСТЕЙ - используем только системные библиотеки Android
+    // НЕТ ЗАВИСИМОСТЕЙ - используем только системные библиотеки
 }
