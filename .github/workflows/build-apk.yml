@@ -57,17 +57,17 @@ jobs:
         
     - name: 🎨 Create Android Files
       run: |
-        # MainActivity.java
+        # MainActivity.java - УПРОЩЕННАЯ ВЕРСИЯ БЕЗ ANDROIDX
         cat > android/app/src/main/java/com/neurosputnik/MainActivity.java << 'EOF'
         package com.neurosputnik;
         
+        import android.app.Activity;
         import android.os.Bundle;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
         import android.webkit.WebSettings;
-        import androidx.appcompat.app.AppCompatActivity;
         
-        public class MainActivity extends AppCompatActivity {
+        public class MainActivity extends Activity {
             private WebView webView;
             
             @Override
@@ -107,7 +107,7 @@ jobs:
         }
         EOF
         
-        # AndroidManifest.xml
+        # AndroidManifest.xml - УПРОЩЕННАЯ ВЕРСИЯ
         cat > android/app/src/main/AndroidManifest.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -120,7 +120,7 @@ jobs:
                 android:allowBackup="true"
                 android:icon="@mipmap/ic_launcher"
                 android:label="NeuroSputnik"
-                android:theme="@style/AppTheme"
+                android:theme="@android:style/Theme.Light"
                 android:usesCleartextTraffic="true">
                 
                 <activity
@@ -146,30 +146,15 @@ jobs:
         </resources>
         EOF
         
-        # styles.xml
-        cat > android/app/src/main/res/values/styles.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <resources>
-            <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-                <item name="colorPrimary">#667eea</item>
-                <item name="colorPrimaryDark">#764ba2</item>
-                <item name="colorAccent">#4ECDC4</item>
-            </style>
-        </resources>
-        EOF
-        
     - name: 📱 Copy Web App
       run: |
         cp index.html android/app/src/main/assets/
         
     - name: 🛠️ Create Build Files
       run: |
-        # gradle.properties - ВАЖНЫЙ ФАЙЛ ДЛЯ AndroidX
+        # gradle.properties - ПРОСТАЯ ВЕРСИЯ
         cat > android/gradle.properties << 'EOF'
-        android.useAndroidX=true
-        android.enableJetifier=true
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-        android.nonTransitiveRClass=false
         EOF
         
         # build.gradle (project)
@@ -184,7 +169,7 @@ jobs:
         }
         EOF
         
-        # build.gradle (app) - УПРОЩЕННАЯ ВЕРСИЯ
+        # build.gradle (app) - УПРОЩЕННАЯ ВЕРСИЯ БЕЗ ANDROIDX
         cat > android/app/build.gradle << 'EOF'
         plugins {
             id 'com.android.application'
@@ -214,6 +199,8 @@ jobs:
             buildTypes {
                 debug {
                     signingConfig signingConfigs.debug
+                minifyEnabled false
+                    proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
                 }
             }
             
@@ -224,8 +211,7 @@ jobs:
         }
         
         dependencies {
-            implementation 'androidx.appcompat:appcompat:1.6.1'
-            implementation 'androidx.webkit:webkit:1.7.0'
+            // БЕЗ ВНЕШНИХ ЗАВИСИМОСТЕЙ - используем только системные библиотеки Android
         }
         EOF
         
@@ -266,6 +252,11 @@ jobs:
         EOF
         chmod +x android/gradlew
         
+        # proguard-rules.pro (пустой файл)
+        cat > android/app/proguard-rules.pro << 'EOF'
+        # Add project specific ProGuard rules here.
+        EOF
+        
     - name: 🔑 Create Debug Keystore
       run: |
         cd android/app
@@ -281,12 +272,10 @@ jobs:
         # Проверяем файлы
         echo "=== Checking Files ==="
         ls -la
-        echo "=== gradle.properties ==="
-        cat gradle.properties
         echo "=== Building APK ==="
         
         # Собираем APK
-        ./gradlew assembleDebug --no-daemon --stacktrace
+        ./gradlew clean assembleDebug --no-daemon --stacktrace
         
     - name: 📦 Upload APK Artifact
       uses: actions/upload-artifact@v4
